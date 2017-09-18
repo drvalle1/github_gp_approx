@@ -1,4 +1,4 @@
-gibbs.approx=function(dat,nomes.cov,ngibbs){
+gibbs.approx=function(dat,nomes.cov,ngibbs,print=TRUE){
   
 nobs=nrow(dat)
 xmat.orig=cov=data.matrix(cbind(1,dat[,nomes.cov]))
@@ -24,7 +24,7 @@ vec.betas=matrix(NA,ngibbs,maxp)
 vec.outros=matrix(NA,ngibbs,1)
 
 for (i in 1:ngibbs){
-  print(c(i,indin))
+  if(print) print(c(i,indin))
   if (!1%in%indin) break;
   tmp=samp.move(indin=indin,indout=indout,maxp=maxp,cov=cov,z=z,
                 lambda=lambda,xmat.orig=xmat.orig)
