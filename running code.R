@@ -2,7 +2,7 @@ rm(list=ls(all=TRUE))
 library('mvtnorm')
 set.seed(18)
 
-setwd('U:\\independent studies\\GP approxim\\github_gp_approx')
+#setwd('U:\\independent studies\\GP approxim\\github_gp_approx')
 source('gibbs sampler.R')
 source('DVfunctions_gibbs.R')
 

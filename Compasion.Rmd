@@ -11,23 +11,156 @@ knitr::opts_chunk$set(echo = TRUE)
 
 The idea is to compare the **GP approximate algorithm** against other models. The **GP results** are given below:
 
+```{r,echo=FALSE}
+#matrix<- credit.train
+#names.cov<- nomes.cov
+
+design.matrix2<-function(matrix, names.cov){
+  temp<- matrix[,names.cov]
+  final<-temp
+  for(i in 1:ncol(temp)){
+    for(j in i:ncol(temp)){
+    temp2<-temp[,i]*temp[,j]
+    final<-cbind(final,temp2)
+    }
+  }
+  return(final)
+}
+
+```
+
+
 ```{r, eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
+set.seed(2882)
+#German Dataset
 source('gibbs sampler.R')
 source('DVfunctions_gibbs.R')
-dat=read.csv('fake data.csv',as.is=T)
-ngibbs=10000
-ind=which(colnames(dat)%in%c('microsc1','loc.id','interc'))
-nomes.cov=colnames(dat)[-ind]
+url<-"http://freakonometrics.free.fr/german_credit.csv"
+credit.full<-read.csv(url, header = TRUE, sep = ",")
+credit<-credit.full
+
+#Rename Y variable
+colnames(credit)[1]<-"microsc1"
+#Create intercept
+credit$interc<-1
+credit$loc.id<-seq(1,nrow(credit))
+credit<-credit[,c(1,23,22,seq(2:21))]
+
+#Denis' Model
+ngibbs<-10000
+ind<-which(colnames(credit)%in%c('microsc1','loc.id','interc'))
+nomes.cov<-colnames(credit)[-ind]
+
+#Training and Validation
+ids<-sample(1:nrow(credit),trunc(0.5*nrow(credit)),F)
+credit.train<-credit[ids,]
+y.train<- credit.full$Creditability[ids]
+credit.valid<-credit[-ids,]
+y.valid<- credit.full$Creditability[-ids]
+
 #fit model
-model.fit=gibbs.approx(dat=dat,nomes.cov=nomes.cov,ngibbs=ngibbs)  
+dat=credit.train
+nomes.cov=nomes.cov
+ngibbs=ngibbs
+print<-FALSE
+model.fit<-gibbs.approx(dat=credit.train,nomes.cov=nomes.cov,ngibbs=ngibbs,TRUE)  
+
+#Burn-in
+list.indin<- unique(model.fit$indin[3000:10000])
+
+#Create the design matrix (check with Denis)
+credit.train.full<- design.matrix2(credit.train, nomes.cov)
+credit.valid.full<- design.matrix2(credit.valid, nomes.cov)
+
+#Validation
+results<-data.frame("Variables"="","Error-In"=NA,"Error-Out"=NA)
+library(stringr)
+for(i in 1:length(list.indin)){
+  columns.seleceted<- list.indin[[i]]
+  
+  #Training design matrix
+  train.model<- credit.train.full[,columns.seleceted]
+  train<-data.frame(y.train, train.model)
+  
+  #Estimate the Bayesian Probit
+  z.out <- glm(y.train ~ ., family = binomial(link = "probit"),  data = train)
+  pred.train<-predict(z.out, type = "response")
+  pred.train<-ifelse(pred.train>0.5,1,0)
+  error.train<- 1 - sum(diag(table(pred.train,y.train)))/sum(table(pred.train,y.train))
+  
+  #Validation design matrix
+  valid.model<- credit.valid.full[,columns.seleceted]
+  pred.valid<-predict(z.out,newdata=valid.model, type = "response")
+  pred.valid<-ifelse(pred.valid>0.5,1,0)
+  error.valid<- 1 - sum(diag(table(pred.valid,y.valid)))/sum(table(pred.valid,y.valid))
+  
+  results.temp<-data.frame("Variables"=str_c(columns.seleceted, collapse = ","),
+                           "Error-In"=error.train,"Error-Out"=error.valid)
+  results<-rbind(results, results.temp)
+}
+results<-results[-1,]
+knitr::kable(results)
 ```
 
-## Including Plots
+## Regularized GLM
 
-You can also embed plots, for example:
+Using the regularized GLM:
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r, eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
+#Invoke the library
+library(glmnet)
+#Grid Search alpha
+alpha<-seq(0,5,length.out = 100)
+#Estimate the results using training data
+train<-as.matrix(credit.train[,nomes.cov])
+valid<-as.matrix(credit.valid[,nomes.cov])
+results<-data.frame("Alpha"=NA,"Error-In"=NA,"Error-Out"=NA)
+for(i in 1:length(alpha)){
+  glmmod <- glmnet(x=train, y=y.train, alpha=alpha[i], family="binomial")
+  #Training
+  pred.train<-predict(glmmod, s=0.01, type="response" , newx=train)
+  pred.train<-ifelse(pred.train>0.5,1,0)
+  error.train<- 1 - sum(diag(table(pred.train,y.train)))/sum(table(pred.train,y.train))
+  #Validation
+  pred.valid<-predict(glmmod, s=0.01, type="response" , newx=valid)
+  pred.valid<-ifelse(pred.valid>0.5,1,0)
+  error.valid<- 1 - sum(diag(table(pred.valid,y.valid)))/sum(table(pred.valid,y.valid))
+  
+  results.temp<-data.frame("Alpha"=alpha[i],
+                           "Error-In"=error.train,"Error-Out"=error.valid)
+  results<-rbind(results, results.temp)
+}
+results<-results[-1,]
+knitr::kable(results)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## Support Vector Machine.
+
+```{r, eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
+#Invoke the library
+library(kernlab)
+#Hyperparameters
+hyper<-expand.grid(C=seq(2^-10,2^10, length.out = 20), sigma = seq(2^-10,2^10, length.out = 20))
+#Estimate the results using training data
+train<-as.matrix(credit.train[,nomes.cov])
+valid<-as.matrix(credit.valid[,nomes.cov])
+results<-data.frame("C"=NA,"Sigma"=NA, "Error-In"=NA,"Error-Out"=NA)
+for(i in 1:length(alpha)){
+  fit <-  ksvm(x=train, y=y.train, kernel="rbfdot",
+               kpar=list(sigma=hyper$sigma[i]),C=hyper$C[i],cross=4,prob.model=TRUE)
+  #Training
+  pred.train<-predict(fit, type="response")
+  pred.train<-ifelse(pred.train>0.5,1,0)
+  error.train<- 1 - sum(diag(table(pred.train,y.train)))/sum(table(pred.train,y.train))
+  #Validation
+  pred.valid<-predict(fit, type="response" , newdata=valid)
+  pred.valid<-ifelse(pred.valid>0.5,1,0)
+  error.valid<- 1 - sum(diag(table(pred.valid,y.valid)))/sum(table(pred.valid,y.valid))
+  
+  results.temp<-data.frame("C"=hyper$C[i],"Sigma"=hyper$sigma[i],
+                           "Error-In"=error.train,"Error-Out"=error.valid)
+  results<-rbind(results, results.temp)
+}
+results<-results[-1,]
+knitr::kable(results)
+```

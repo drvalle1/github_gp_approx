@@ -57,6 +57,10 @@ rmvnorm=function (n, mean = rep(0, nrow(sigma)), sigma = diag(length(mean)),
 }
 #------------------------------------
 update.betas=function(cov,lambda,z){
+  if(is.null(ncol(cov))){
+    cov<-matrix(cov,ncol=1)
+  }
+  
   p=ncol(cov)
   Tinv=diag(x=1/lambda,p)
   Tinv[1,1]=1/10
@@ -67,6 +71,10 @@ update.betas=function(cov,lambda,z){
 }
 #------------------------------------
 update.z=function(cov,betas,dat,nobs){
+  if(is.null(ncol(cov))){
+    cov<-matrix(cov,ncol=1)
+  }
+  
   cond=dat$microsc1>0
   media=cov%*%betas
   res=rep(NA,nobs)
@@ -76,6 +84,10 @@ update.z=function(cov,betas,dat,nobs){
 }
 #------------------------------------
 update.lambda=function(cov,betas,a.lamb,b.lamb){
+  if(is.null(ncol(cov))){
+    cov<-matrix(cov,ncol=1)
+  }
+  
   p=ncol(cov)
   a1=a.lamb+(p-1)/2
   b1=b.lamb+sum(betas[-1]^2)/2
@@ -83,6 +95,10 @@ update.lambda=function(cov,betas,a.lamb,b.lamb){
 }
 #------------------------------------
 log.marg.likel=function(cov,z,lambda){
+  if(is.null(ncol(cov))){
+    cov<-matrix(cov,ncol=1)
+  }
+  
   p=ncol(cov)
   
   Tinv=diag(x=1/lambda,p)
@@ -96,6 +112,10 @@ log.marg.likel=function(cov,z,lambda){
 }
 #------------------------------------
 samp.move=function(indin,indout,maxp,cov,z,lambda,xmat.orig){
+  if(is.null(ncol(cov))){
+    cov<-matrix(cov,ncol=1)
+  }
+  
   indin.old=indin
   p=length(indin.old)
   rand1=runif(1)	

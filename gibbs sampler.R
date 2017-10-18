@@ -23,6 +23,7 @@ ngibbs=10000
 vec.betas=matrix(NA,ngibbs,maxp)
 vec.outros=matrix(NA,ngibbs,1)
 
+list.indin<-list()
 for (i in 1:ngibbs){
   if(print) print(c(i,indin))
   if (!1%in%indin) break;
@@ -41,9 +42,10 @@ for (i in 1:ngibbs){
   tmp[indin]=betas
   vec.betas[i,]=tmp
   vec.outros[i]=lambda
+  list.indin[[i]]<- indin
 }
 
-list(betas=vec.betas,lambda=vec.outros)
+list(betas=vec.betas,lambda=vec.outros, indin= list.indin)
 # seq1=500:(i-1)
 # plot(vec.betas[seq1,1],type='l')
 # plot(vec.outros[seq1,1],type='l')
