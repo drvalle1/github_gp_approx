@@ -14,7 +14,7 @@ The idea is to compare the **GP approximate algorithm** against other models. Th
 ```{r,echo=FALSE}
 #matrix<- credit.train
 #names.cov<- nomes.cov
-
+#!!!!!!!!!!!!! (padronizar) !!!!!!!!!
 design.matrix2<-function(matrix, names.cov){
   temp<- matrix[,names.cov]
   final<-temp
