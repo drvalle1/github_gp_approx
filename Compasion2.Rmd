@@ -35,16 +35,18 @@ set.seed(2882)
 #German Dataset
 source('gibbs sampler.R')
 source('DVfunctions_gibbs.R')
-url<-"http://freakonometrics.free.fr/german_credit.csv"
-credit.full<-read.csv(url, header = TRUE, sep = ",")
+credit.full<-read.csv("creditbank.csv", header = TRUE, sep = ";")
+#Treat data
+credit.full$SEX<-credit.full$SEX-1
 credit<-credit.full
 
 #Rename Y variable
-colnames(credit)[1]<-"microsc1"
+colnames(credit)[24]<-"microsc1"
+colnames(credit.full)[24]<-"microsc1"
 #Create intercept
 credit$interc<-1
 credit$loc.id<-seq(1,nrow(credit))
-credit<-credit[,c(1,23,22,seq(2:21))]
+
 
 #Denis' Model
 ngibbs<-10000
@@ -54,9 +56,9 @@ nomes.cov<-colnames(credit)[-ind]
 #Training and Validation
 ids<-sample(1:nrow(credit),trunc(0.5*nrow(credit)),F)
 credit.train<-credit[ids,]
-y.train<- credit.full$Creditability[ids]
+y.train<- credit.full$microsc1[ids]
 credit.valid<-credit[-ids,]
-y.valid<- credit.full$Creditability[-ids]
+y.valid<- credit.full$microsc1[-ids]
 
 #fit model
 dat=credit.train
